@@ -1,6 +1,6 @@
 {
   "name": "react-native-argon2-turbo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "High-performance Argon2 hashing for React Native with TurboModules (JSI)",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
