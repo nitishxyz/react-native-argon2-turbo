@@ -56,16 +56,18 @@ passwordEncoding:(NSString *)passwordEncoding
 saltEncoding:(NSString *)saltEncoding
      resolve:(RCTPromiseResolveBlock)resolve
       reject:(RCTPromiseRejectBlock)reject {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        @try {
-            NSDictionary *result = [self performHash:password
-                                                salt:salt
-                                          iterations:(int)iterations
-                                              memory:(int)memory
-                                         parallelism:(int)parallelism
-                                          hashLength:(int)hashLength
-                                                mode:mode];
-            dispatch_async(dispatch_get_main_queue(), ^{
+   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+       @try {
+           NSDictionary *result = [self performHash:password
+                                               salt:salt
+                                         iterations:(int)iterations
+                                             memory:(int)memory
+                                        parallelism:(int)parallelism
+                                         hashLength:(int)hashLength
+                                               mode:mode
+                                   passwordEncoding:passwordEncoding
+                                       saltEncoding:saltEncoding];
+           dispatch_async(dispatch_get_main_queue(), ^{
                 resolve(result);
             });
         } @catch (NSException *exception) {
@@ -85,13 +87,15 @@ saltEncoding:(NSString *)saltEncoding
                       mode:(NSString *)mode
           passwordEncoding:(NSString *)passwordEncoding
               saltEncoding:(NSString *)saltEncoding {
-    return [self performHash:password
-                        salt:salt
-                  iterations:(int)iterations
-                      memory:(int)memory
-                 parallelism:(int)parallelism
-                  hashLength:(int)hashLength
-                        mode:mode];
+   return [self performHash:password
+                       salt:salt
+                 iterations:(int)iterations
+                     memory:(int)memory
+                parallelism:(int)parallelism
+                 hashLength:(int)hashLength
+                       mode:mode
+           passwordEncoding:passwordEncoding
+               saltEncoding:saltEncoding];
 }
 
 - (NSDictionary *)performHash:(NSString *)password
@@ -100,7 +104,9 @@ saltEncoding:(NSString *)saltEncoding
                        memory:(int)memory
                   parallelism:(int)parallelism
                    hashLength:(int)hashLength
-                         mode:(NSString *)mode {
+                         mode:(NSString *)mode
+             passwordEncoding:(NSString *)passwordEncoding
+                 saltEncoding:(NSString *)saltEncoding {
     NSError *error = nil;
     
     Argon2TypeObjC type = Argon2TypeObjCId;
@@ -110,24 +116,31 @@ saltEncoding:(NSString *)saltEncoding
         type = Argon2TypeObjCD;
     }
     
-    Argon2HashResult *result = [Argon2Core hashStringWithPassword:password
-                                                             salt:salt
-                                                       iterations:iterations
-                                                           memory:memory
-                                                      parallelism:parallelism
-                                                       hashLength:hashLength
-                                                             type:type
-                                                            error:&error];
+   NSData *pwdData = [self decodeInput:password encoding:passwordEncoding];
+   NSData *saltData = [self decodeInput:salt encoding:saltEncoding];
+   
+   NSData *hashData = [Argon2Core computeArgon2BytesWithPassword:pwdData
+                                                            salt:saltData
+                                                      iterations:iterations
+                                                          memory:memory
+                                                     parallelism:parallelism
+                                                      hashLength:hashLength];
     
-    if (error || result == nil) {
+   if (hashData == nil) {
         @throw [NSException exceptionWithName:@"Argon2Error"
                                        reason:error.localizedDescription ?: @"Hash computation failed"
                                      userInfo:nil];
     }
     
+   NSString *rawHashHex = [self dataToHex:hashData];
+   NSString *encodedHash = [NSString stringWithFormat:@"$argon2id$v=19$m=%d,t=%d,p=%d$%@$%@",
+       memory, iterations, parallelism,
+       [[saltData base64EncodedStringWithOptions:0] stringByReplacingOccurrencesOfString:@"=" withString:@""],
+       [[hashData base64EncodedStringWithOptions:0] stringByReplacingOccurrencesOfString:@"=" withString:@""]];
+   
     return @{
-        @"rawHash": result.rawHashHex,
-        @"encodedHash": result.encodedHash
+       @"rawHash": rawHashHex,
+       @"encodedHash": encodedHash
     };
 }
 
@@ -247,13 +260,13 @@ saltEncoding:(NSString *)saltEncoding
         // Cleanup heap-allocated found flag
         delete foundResultPtr;
         
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (found && winningDigest) {
-                resolve(@{
-                    @"nonce": @(winningNonce),
-                    @"digest": winningDigest,
-                    @"attempts": @(totalAttempts),
-                    @"elapsedMs": @(elapsedMs)
+       dispatch_async(dispatch_get_main_queue(), ^{
+           if (found && winningDigest) {
+               resolve(@{
+                   @"nonce": @((double)winningNonce),
+                   @"digest": winningDigest,
+                   @"attempts": @(totalAttempts),
+                   @"elapsedMs": @(elapsedMs)
                 });
             } else if (waitResult != 0) {
                 reject(@"POW_TIMEOUT", @"PoW computation timed out", nil);
@@ -347,6 +360,15 @@ saltEncoding:(NSString *)saltEncoding
 }
 
 #pragma mark - Helper Methods
+
+- (NSData *)decodeInput:(NSString *)input encoding:(NSString *)encoding {
+    if ([encoding isEqualToString:@"hex"]) {
+        return [self hexToData:input];
+    } else if ([encoding isEqualToString:@"base64"]) {
+        return [[NSData alloc] initWithBase64EncodedString:input options:0];
+    }
+    return [input dataUsingEncoding:NSUTF8StringEncoding];
+}
 
 - (int)countLeadingZeroBits:(NSData *)data {
     const uint8_t *bytes = (const uint8_t *)data.bytes;

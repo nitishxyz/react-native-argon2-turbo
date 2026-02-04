@@ -59,18 +59,20 @@ class Argon2TurboModule(reactContext: ReactApplicationContext) :
         promise: Promise
     ) {
         scope.launch {
-            try {
-                val argon2Kt = Argon2Kt()
-                val result = performHash(
-                    argon2Kt,
-                    password.toByteArray(Charsets.UTF_8),
-                    salt.toByteArray(Charsets.UTF_8),
-                    iterations.toInt(),
-                    memory.toInt(),
-                    parallelism.toInt(),
-                    hashLength.toInt(),
-                    mode
-                )
+           try {
+               val argon2Kt = Argon2Kt()
+               val pwdBytes = decodeInput(password, passwordEncoding)
+               val saltBytes = decodeInput(salt, saltEncoding)
+               val result = performHash(
+                   argon2Kt,
+                   pwdBytes,
+                   saltBytes,
+                   iterations.toInt(),
+                   memory.toInt(),
+                   parallelism.toInt(),
+                   hashLength.toInt(),
+                   mode
+               )
                 withContext(Dispatchers.Main) {
                     promise.resolve(result)
                 }
@@ -93,16 +95,18 @@ class Argon2TurboModule(reactContext: ReactApplicationContext) :
         passwordEncoding: String,
         saltEncoding: String
     ): WritableMap {
-        val argon2Kt = Argon2Kt()
-        return performHash(
-            argon2Kt,
-            password.toByteArray(Charsets.UTF_8),
-            salt.toByteArray(Charsets.UTF_8),
-            iterations.toInt(),
-            memory.toInt(),
-            parallelism.toInt(),
-            hashLength.toInt(),
-            mode
+       val argon2Kt = Argon2Kt()
+       val pwdBytes = decodeInput(password, passwordEncoding)
+       val saltBytes = decodeInput(salt, saltEncoding)
+       return performHash(
+           argon2Kt,
+           pwdBytes,
+           saltBytes,
+           iterations.toInt(),
+           memory.toInt(),
+           parallelism.toInt(),
+           hashLength.toInt(),
+           mode
         )
     }
 
@@ -256,13 +260,13 @@ class Argon2TurboModule(reactContext: ReactApplicationContext) :
                 val finalAttempts = workerAttempts.sumOf { it.get() }
                 totalAttempts.set(finalAttempts)
 
-                if (result != null) {
-                    withContext(Dispatchers.Main) {
-                        promise.resolve(Arguments.createMap().apply {
-                            putInt("nonce", result.nonce.toInt())
-                            putString("digest", result.digest)
-                            putInt("attempts", finalAttempts)
-                            putDouble("elapsedMs", elapsedMs.toDouble())
+               if (result != null) {
+                   withContext(Dispatchers.Main) {
+                       promise.resolve(Arguments.createMap().apply {
+                           putDouble("nonce", result.nonce.toLong().toDouble())
+                           putString("digest", result.digest)
+                           putInt("attempts", finalAttempts)
+                           putDouble("elapsedMs", elapsedMs.toDouble())
                         })
                     }
                 } else {
@@ -401,11 +405,19 @@ class Argon2TurboModule(reactContext: ReactApplicationContext) :
         return result
     }
 
-    private fun bytesToHex(bytes: ByteArray): String {
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
+   private fun bytesToHex(bytes: ByteArray): String {
+       return bytes.joinToString("") { "%02x".format(it) }
+   }
 
-    companion object {
+   private fun decodeInput(input: String, encoding: String): ByteArray {
+       return when (encoding) {
+           "hex" -> hexToBytes(input)
+           "base64" -> android.util.Base64.decode(input, android.util.Base64.DEFAULT)
+           else -> input.toByteArray(Charsets.UTF_8)
+       }
+   }
+
+   companion object {
         const val NAME = "Argon2Turbo"
     }
 }
