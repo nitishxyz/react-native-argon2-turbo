@@ -7,7 +7,9 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(bytes[i]!);
   }
   // Use global btoa which is available in React Native
-  return (globalThis as { btoa?: (s: string) => string }).btoa?.(binary) ?? binary;
+  return (
+    (globalThis as { btoa?: (s: string) => string }).btoa?.(binary) ?? binary
+  );
 }
 
 function uint8ArrayToUtf8(bytes: Uint8Array): string {

@@ -186,7 +186,9 @@ export default function App() {
         {verifyResult !== null && (
           <View style={styles.result}>
             <Text style={styles.label}>Valid:</Text>
-            <Text style={[styles.value, { color: verifyResult ? 'green' : 'red' }]}>
+            <Text
+              style={[styles.value, { color: verifyResult ? 'green' : 'red' }]}
+            >
               {verifyResult ? 'YES ✓' : 'NO ✗'}
             </Text>
           </View>
