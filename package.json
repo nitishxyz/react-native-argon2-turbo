@@ -1,6 +1,6 @@
 {
   "name": "react-native-argon2-turbo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "High-performance Argon2 hashing for React Native with TurboModules (JSI)",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -45,14 +45,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nicedoc/react-native-argon2-turbo.git"
+    "url": "git+https://github.com/nitishxyz/react-native-argon2-turbo.git"
   },
   "author": "Mirage <dev@mirage.app> (https://mirage.app)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/nicedoc/react-native-argon2-turbo/issues"
+    "url": "https://github.com/nitishxyz/react-native-argon2-turbo/issues"
   },
-  "homepage": "https://github.com/nicedoc/react-native-argon2-turbo#readme",
+  "homepage": "https://github.com/nitishxyz/react-native-argon2-turbo#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
